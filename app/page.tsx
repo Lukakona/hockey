@@ -366,7 +366,7 @@ useEffect(() => {
         </div>
       )}
 
-      <BlueskyLoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} onSuccess={() => setIsLoginOpen(false)}/>
+      <BlueskyLoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
       <Footer/>
     </div>
   );

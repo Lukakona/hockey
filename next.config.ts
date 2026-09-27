@@ -1,11 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Hosts allowed to make dev-server requests (values are bare hostnames).
+  // Previously set via a stray `module.exports` that Next.js ignored.
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
 };
-
-module.exports = {
-  allowedDevOrigins: ['127.0.0.1'],
-}
 
 export default nextConfig;

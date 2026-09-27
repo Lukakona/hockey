@@ -1,71 +1,43 @@
-import {
-  NodeOAuthClient,
-  buildAtprotoLoopbackClientMetadata,
-  NodeSavedState,
-  NodeSavedSession,
-} from '@atproto/oauth-client-node';
+import { NodeOAuthClient, requestLocalLock } from '@atproto/oauth-client-node';
+import type { NextRequest, NextResponse } from 'next/server';
+import { getClientMetadata, resolveAppUrl } from './oauth-config';
+import { createOAuthStores } from './oauth-store';
 
-const globalAuth = globalThis as unknown as {
-  stateStore?: Map<string, NodeSavedState>;
-  sessionStore?: Map<string, NodeSavedSession>;
-  oauthClient?: NodeOAuthClient;
-};
+export {
+  CALLBACK_PATH,
+  CLIENT_METADATA_PATH,
+  OAUTH_SCOPE,
+  getClientMetadata,
+  resolveAppUrl,
+} from './oauth-config';
 
-globalAuth.stateStore ??= new Map();
-globalAuth.sessionStore ??= new Map();
+export interface OAuthClientContext {
+  client: NodeOAuthClient;
+  /** The public origin the client metadata was built for. */
+  appUrl: URL;
+  /** Applies any buffered OAuth cookies to the outgoing response. */
+  commit(response: NextResponse): void;
+}
 
-// Define extended scope including generic AppView RPC permissions
-const OAUTH_SCOPE = 'atproto transition:generic';
+/**
+ * Builds a Bluesky OAuth client for a single incoming request.
+ *
+ * The client is intentionally not cached on `globalThis`: the AT Protocol
+ * handshake is kept in cookies, so each request needs its own store instance
+ * bound to that request and response.
+ */
+export function createOAuthClient(request: NextRequest): OAuthClientContext {
+  const appUrl = resolveAppUrl(request);
+  const { stateStore, sessionStore, commit } = createOAuthStores(request, appUrl);
 
-export function getOAuthClient(): NodeOAuthClient {
-  if (globalAuth.oauthClient) return globalAuth.oauthClient;
-
-  const isDev = process.env.NODE_ENV !== 'production';
-
-  const clientMetadata = isDev
-    ? buildAtprotoLoopbackClientMetadata({
-        scope: OAUTH_SCOPE,
-        redirect_uris: ['http://127.0.0.1:3000/api/oauth/callback'],
-      })
-    : {
-        client_id: `${process.env.NEXT_PUBLIC_APP_URL}/client-metadata.json`,
-        client_name: 'Blueline Hockey',
-        client_uri: process.env.NEXT_PUBLIC_APP_URL!,
-        redirect_uris: [`${process.env.NEXT_PUBLIC_APP_URL}/api/oauth/callback`],
-        grant_types: ['authorization_code', 'refresh_token'],
-        response_types: ['code'],
-        scope: OAUTH_SCOPE,
-        token_endpoint_auth_method: 'none',
-        application_type: 'web',
-      };
-
-  globalAuth.oauthClient = new NodeOAuthClient({
-    clientMetadata: clientMetadata as any,
+  const client = new NodeOAuthClient({
+    clientMetadata: getClientMetadata(appUrl),
     plcDirectoryUrl: 'https://plc.directory',
     handleResolver: 'https://bsky.social',
-    stateStore: {
-      async get(key: string) {
-        return globalAuth.stateStore?.get(key);
-      },
-      async set(key: string, value: NodeSavedState) {
-        globalAuth.stateStore?.set(key, value);
-      },
-      async del(key: string) {
-        globalAuth.stateStore?.delete(key);
-      },
-    },
-    sessionStore: {
-      async get(key: string) {
-        return globalAuth.sessionStore?.get(key);
-      },
-      async set(key: string, value: NodeSavedSession) {
-        globalAuth.sessionStore?.set(key, value);
-      },
-      async del(key: string) {
-        globalAuth.sessionStore?.delete(key);
-      },
-    },
+    stateStore,
+    sessionStore,
+    requestLock: requestLocalLock,
   });
 
-  return globalAuth.oauthClient;
+  return { client, appUrl, commit };
 }

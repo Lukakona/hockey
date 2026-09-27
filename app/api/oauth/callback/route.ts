@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { getOAuthClient } from '@/lib/bluesky/bluesky-oauth';
+import { createOAuthClient } from '@/lib/bluesky/bluesky-oauth';
 import { createClient } from '@/lib/supabase/server';
 import { BskyAgent } from '@atproto/api';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
+  const { client, appUrl, commit } = createOAuthClient(req);
+
   try {
-    const client = getOAuthClient();
     const params = new URLSearchParams(req.nextUrl.search);
 
-    // 1. Process Bluesky OAuth Callback & obtain session
+    // 1. Process the Bluesky OAuth callback & obtain the session. This reads the
+    //    handshake written by /api/oauth/login from the state cookie.
     const { session } = await client.callback(params);
     const userDid = session.did;
 
-    // 2. Fetch public profile using unauthenticated BskyAgent
+    // 2. Fetch the public profile using an unauthenticated BskyAgent
     const publicAgent = new BskyAgent({ service: 'https://public.api.bsky.app' });
     const profileRes = await publicAgent.getProfile({ actor: userDid });
     const profile = profileRes.data;
@@ -22,49 +25,60 @@ export async function GET(req: NextRequest) {
     const avatar = profile.avatar || '';
     const displayName = profile.displayName || handle;
 
-    // 3. Upsert into Supabase database
+    // 3. Upsert into Supabase. A failure here should not block sign-in, so it is
+    //    logged rather than thrown.
     const supabase = await createClient();
-    await supabase.from('profiles').upsert(
+    const { error: profileError } = await supabase.from('profiles').upsert(
       {
-        did: userDid,
-        handle: handle,
+        bsky_did: userDid,
+        username: handle,
         display_name: displayName,
-        avatar_url: avatar,
+        avatar_url: avatar || null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'did' }
+      { onConflict: 'bsky_did' }
     );
 
-    // 4. Set cookies via Next.js cookie store
-    const cookieStore = await cookies();
-    const cookieOptions = {
-      httpOnly: false,
-      path: '/',
-      sameSite: 'lax' as const,
-      secure: false,
-      maxAge: 60 * 60 * 24 * 7,
-    };
+    if (profileError) {
+      console.error('Supabase Profile Upsert Error:', profileError.message);
+    }
 
-    cookieStore.set('bsky_did', userDid, cookieOptions);
-    cookieStore.set('bsky_handle', handle, cookieOptions);
-    cookieStore.set('bsky_avatar', avatar, cookieOptions);
-
-    // 5. Redirect back with URL parameters so the client gets the data even if cookies are dropped
-    const redirectUrl = new URL('/', req.nextUrl.origin);
+    // 4. Redirect back to the app, carrying the identity in the URL so the client
+    //    has it even if cookies are unavailable.
+    const redirectUrl = new URL('/', appUrl.origin);
     redirectUrl.searchParams.set('did', userDid);
     redirectUrl.searchParams.set('handle', handle);
     if (avatar) redirectUrl.searchParams.set('avatar', avatar);
 
     const res = NextResponse.redirect(redirectUrl);
-    
-    // Set on response object as well
+
+    // 5. Mirror the identity into readable cookies so it survives reloads.
+    const cookieOptions = {
+      httpOnly: false, // Read by the client via document.cookie.
+      path: '/',
+      sameSite: 'lax' as const,
+      secure: appUrl.protocol === 'https:',
+      maxAge: 60 * 60 * 24 * 7,
+    };
+
     res.cookies.set('bsky_did', userDid, cookieOptions);
     res.cookies.set('bsky_handle', handle, cookieOptions);
     res.cookies.set('bsky_avatar', avatar, cookieOptions);
 
+    // 6. Persist the AT Protocol session (and clear the consumed state cookie).
+    commit(res);
+
     return res;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('OAuth Callback Error:', error);
-    return NextResponse.redirect(new URL('/?error=auth_failed', req.nextUrl.origin));
+
+    const failureUrl = new URL('/', appUrl.origin);
+    failureUrl.searchParams.set('error', 'auth_failed');
+
+    const res = NextResponse.redirect(failureUrl);
+    // Still flush, so a consumed or invalid state cookie is cleaned up.
+    commit(res);
+
+    return res;
   }
 }

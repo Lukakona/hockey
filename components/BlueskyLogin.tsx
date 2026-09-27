@@ -4,20 +4,20 @@ import { useState } from 'react';
 export default function BlueskyLoginModal({
   isOpen,
   onClose,
-  onSuccess
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
 }) {
   const [handle, setHandle] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
       const res = await fetch('/api/oauth/login', {
@@ -26,16 +26,22 @@ export default function BlueskyLoginModal({
         body: JSON.stringify({ handle }),
       });
 
-      const data = await res.json();
-      if (data.url) {
-        // Redirect user to Bluesky server for authentication
-        window.location.href = data.url;
-      } else {
-        alert('Could not start login. Check the handle.');
-        setLoading(false);
+      const data = await res.json().catch(() => null);
+
+      // The route responds with `url` (older builds used `redirectUrl`).
+      const redirectTo: string | undefined = data?.url ?? data?.redirectUrl;
+
+      if (res.ok && redirectTo) {
+        // Redirect the user to the Bluesky authorization server.
+        window.location.href = redirectTo;
+        return;
       }
+
+      setError(data?.error || 'Could not start login. Check the handle and try again.');
+      setLoading(false);
     } catch (err) {
       console.error(err);
+      setError('Could not reach the server. Check your connection and try again.');
       setLoading(false);
     }
   };
@@ -57,6 +63,11 @@ export default function BlueskyLoginModal({
             className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500 text-slate-100"
             required
           />
+          {error && (
+            <p role="alert" className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl px-3 py-2">
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading}

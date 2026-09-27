@@ -10,8 +10,13 @@ export async function GET() {
     redirect_uris: [`${host}/api/oauth/callback`],
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
-    scope: 'atproto',
+    scope: 'atproto transition:generic',
     token_endpoint_auth_method: 'none',
     application_type: 'web',
+  },
+  {
+    headers: {
+      'Cache-Control': 'public, max-age=0, must-revalidate',
+    },
   });
 }

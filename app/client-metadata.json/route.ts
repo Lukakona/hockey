@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const host = process.env.NEXT_PUBLIC_APP_URL || 'http://127.0.0.1:3000';
+  const host = process.env.NEXT_PUBLIC_APP_URL || 'https://hockey.lukakona.online';
 
   return NextResponse.json({
     client_id: `${host}/client-metadata.json`,

@@ -8,6 +8,7 @@ export default function BlueskyLoginModal({
 }: {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: () => void;
 }) {
   const [handle, setHandle] = useState('');
   const [loading, setLoading] = useState(false);

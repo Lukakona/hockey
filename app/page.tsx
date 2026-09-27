@@ -19,7 +19,7 @@ type ActiveView = 'games' | 'myteams' | 'idleteam'
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [userProfile, setUserProfile] = useState<{handle: string; avatar: string}>();
+  const [userProfile, setUserProfile] = useState<{handle: string; avatar: string; did: string} | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>('games');
   const [loading, setLoading] = useState<boolean>(true);

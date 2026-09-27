@@ -4,6 +4,7 @@ import { useState } from 'react';
 export default function BlueskyLoginModal({
   isOpen,
   onClose,
+  onSuccess
 }: {
   isOpen: boolean;
   onClose: () => void;

@@ -281,4 +281,4 @@ export default function Home() {
       <Footer onInfoClick={() => setIsInfoOpen(true)} />
     </div>
   );
-} 
+}

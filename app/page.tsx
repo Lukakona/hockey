@@ -19,6 +19,7 @@ export interface Game {
   period_info: string;
   score: string;
   start_utc: string;
+  venue: string;
 }
 
 type ActiveView = 'games' | 'myteams' | 'idleteam';

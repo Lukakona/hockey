@@ -52,7 +52,7 @@ export default function BlueskyLoginModal({
         <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
         
         <h2 className="text-xl font-bold mb-1">Sign in with Bluesky</h2>
-        <p className="text-xs text-slate-400 mb-4">Enter your handle to log in securely via Bluesky OAuth.</p>
+        <p className="text-xs text-slate-400 mb-4">Enter your handle to log in via Bluesky OAuth.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input

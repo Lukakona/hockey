@@ -36,7 +36,7 @@ export default function NHLWeekDay( {
 
     if (loading) {
         return (
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-400 animate-pulse">
+            <div className="bg-blue-100 border border-black rounded-2xl p-6 text-center text-amber-800 animate-pulse">
                 Loading games...
             </div>
         );
@@ -44,9 +44,9 @@ export default function NHLWeekDay( {
 
     return (
         <div>
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-400">
+            <div className="bg-blue-100 border-4 border-black rounded-2xl p-6 text-center text-black">
                 <div className='flex items-center justify-between mb-4'>
-                    <button className="text-slate-400 hover:bg-slate-800 p-6 mr-2 rounded-xl font-medium text-left transition"
+                    <button className="text-black hover:bg-blue-200 p-6 mr-2 rounded-xl font-medium text-left transition"
                         onClick={() => changeDate(-1)}>
                     <svg 
                         xmlns="http://www.w3.org/2000/svg" 
@@ -62,12 +62,12 @@ export default function NHLWeekDay( {
                         <path d="m15 18-6-6 6-6"/>
                     </svg>
                     </button>
-                    <div className="bg-slate-800 border-slate-100 rounded-2xl p-2 w-100 text-slate-300">
+                    <div className="bg-blue-400 border-black border-2 rounded-2xl p-2 w-100 text-black font-semibold">
                         {date.toDateString().slice(0,3)}
                         <br/>
                         {date.toDateString().slice(3)}
                     </div>
-                    <button className="text-slate-400 hover:bg-slate-800 p-6 ml-2 rounded-xl font-medium text-left transition"
+                    <button className="text-black hover:bg-blue-200 p-6 mr-2 rounded-xl font-medium text-left transition"
                         onClick={() => changeDate(1)}>
                     <svg 
                         xmlns="http://www.w3.org/2000/svg" 
@@ -87,20 +87,20 @@ export default function NHLWeekDay( {
             
                 {/* LIVE */}
                 {liveGames.length > 0 && (
-                    <details className="group bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden transition-all">
-                    <summary className="flex items-center justify-between p-4 cursor-pointer select-none bg-slate-900 hover:bg-slate-800/60 transition">
+                    <details open className="group bg-blue-200 border-2 border-black rounded-2xl overflow-hidden transition-all">
+                    <summary className="flex items-center justify-between p-4 cursor-pointer select-none bg-blue-300 hover:bg-blue-400 transition">
                         <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                        <h2 className="text-base font-bold text-red-400">Live Now</h2>
-                        <span className="text-xs text-slate-500 font-mono">({liveGames.length})</span>
+                        <h2 className="text-base font-bold text-red-600">Live Now</h2>
+                        <span className="text-s font-bold text-blue-900 font-mono">({liveGames.length})</span>
                         </div>
                         {/* Accordion Arrow Icon */}
-                        <span className="text-slate-400 group-open:rotate-180 transition-transform duration-200">
+                        <span className="text-black group-open:rotate-180 transition-transform duration-200">
                         ▼
                         </span>
                     </summary>
 
-                    <div className="p-4 pt-1 flex flex-col gap-4 border-t border-slate-800/50">
+                    <div className="p-4 pt-1 flex flex-col gap-4 border-t border-black">
                         {liveGames.map((game) => (
                         <GameCard key={game.id} game={game} onSelectBet={setSelectedBet} />
                         ))}
@@ -110,19 +110,19 @@ export default function NHLWeekDay( {
 
                 {/* UPCOMING */}
                 {upcomingGames.length > 0 && (
-                    <details className="group bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden transition-all">
-                    <summary className="flex items-center justify-between p-4 cursor-pointer select-none bg-slate-900 hover:bg-slate-800/60 transition">
+                    <details open className="group bg-blue-200 border-2 border-black rounded-2xl overflow-hidden transition-all">
+                    <summary className="flex items-center justify-between p-4 cursor-pointer select-none bg-blue-300 hover:bg-blue-400 transition">
                         <div className="flex items-center gap-2">
-                        <h2 className="text-base font-bold text-gray-200">Upcoming Games</h2>
-                        <span className="text-xs text-slate-500 font-mono">({upcomingGames.length})</span>
+                        <h2 className="text-base font-bold text-black">Upcoming Games</h2>
+                        <span className="text-s font-bold text-blue-900 font-mono">({upcomingGames.length})</span>
                         </div>
                         {/* Accordion Arrow Icon */}
-                        <span className="text-slate-400 group-open:rotate-180 transition-transform duration-200">
+                        <span className="text-black group-open:rotate-180 transition-transform duration-200">
                         ▼
                         </span>
                     </summary>
 
-                    <div className="p-4 pt-1 flex flex-col gap-4 border-t border-slate-800/50">
+                    <div className="p-4 pt-1 flex flex-col gap-4 border-t border-black">
                         {upcomingGames.map((game) => (
                         <GameCard key={game.id} game={game} onSelectBet={setSelectedBet} />
                         ))}
@@ -132,19 +132,19 @@ export default function NHLWeekDay( {
 
                 {/* FINISHED */}
                 {finishedGames.length > 0 && (
-                    <details className="group bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden transition-all">
-                    <summary className="flex items-center justify-between p-4 cursor-pointer select-none bg-slate-900 hover:bg-slate-800/60 transition">
+                    <details open className="group bg-blue-200 border-2 border-black rounded-2xl overflow-hidden transition-all">
+                    <summary className="flex items-center justify-between p-4 cursor-pointer select-none bg-blue-300 hover:bg-blue-400 transition">
                         <div className="flex items-center gap-2">
-                        <h2 className="text-base font-bold text-gray-500">Finished Games</h2>
-                        <span className="text-xs text-slate-500 font-mono">({finishedGames.length})</span>
+                        <h2 className="text-base font-bold text-gray-600">Finished Games</h2>
+                        <span className="text-s font-bold text-blue-900 font-mono">({finishedGames.length})</span>
                         </div>
                         {/* Accordion Arrow Icon */}
-                        <span className="text-slate-400 group-open:rotate-180 transition-transform duration-200">
+                        <span className="text-black group-open:rotate-180 transition-transform duration-200">
                         ▼
                         </span>
                     </summary>
 
-                    <div className="p-4 pt-1 flex flex-col gap-4 border-t border-slate-800/50">
+                    <div className="p-4 pt-1 flex flex-col gap-4 border-t border-black">
                         {finishedGames.map((game) => (
                         <GameCard key={game.id} game={game} onSelectBet={setSelectedBet} />
                         ))}
@@ -176,7 +176,7 @@ function GameCard({
   console.log(date);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+    <div className="bg-blue-100 border-2 border-black rounded-2xl p-5 shadow-lg relative overflow-hidden">
       {/* Indicator Bar */}
       {isLive && (
         <div className="absolute top-0 left-0 right-0 h-1 bg-red-500 animate-pulse" />
@@ -188,7 +188,7 @@ function GameCard({
           className={
             isLive
               ? 'text-red-400 animate-pulse flex items-center gap-1.5'
-              : 'text-slate-400'
+              : 'text-blue-800'
           }
         >
           {isLive && (
@@ -196,7 +196,7 @@ function GameCard({
           )}
           {game.period_info || date.toLocaleTimeString()}
         </span>
-        <span className="text-slate-500 font-mono">{game.venue}</span>
+        <span className="text-slate-600 font-mono">{game.venue}</span>
       </div>
 
         {/* Teams & Score */}
@@ -206,7 +206,7 @@ function GameCard({
             <img
             src={game.away_icon}
             alt={game.away_team}
-            className="w-9 h-9 rounded-full object-cover border border-slate-700 shrink-0"
+            className="w-9 h-9 rounded-full object-cover border border-black shrink-0"
             />
             <div className="font-bold text-base sm:text-lg truncate">
             {game.away_team}
@@ -215,9 +215,9 @@ function GameCard({
 
         {/* Center Score Column */}
         <div className="flex flex-col items-center justify-center text-center">
-            <div>@</div>
+            <div className='font-extrabold'>@</div>
             {hasScore && (
-            <div className="bg-slate-800 text-cyan-400 px-3 py-1 rounded-lg font-black tracking-widest text-sm whitespace-nowrap">
+            <div className="bg-blue-800 text-cyan-400 px-3 py-1 rounded-lg font-black tracking-widest text-sm whitespace-nowrap">
                 {game.score}
             </div>
             )}
@@ -231,7 +231,7 @@ function GameCard({
             <img
             src={game.home_icon}
             alt={game.home_team}
-            className="w-9 h-9 rounded-full object-cover border border-slate-700 shrink-0"
+            className="w-9 h-9 rounded-full object-cover border border-black shrink-0"
             />
         </div>
         </div>

@@ -38,21 +38,20 @@ export default function LeaderboardPanel() {
 
   if (loading) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-400 animate-pulse">
+      <div className="bg-blue-100 border-2 border-black rounded-2xl p-6 text-center text-black animate-pulse">
         Loading community leaderboard...
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+    <div className="bg-blue-100 border-2 border-black rounded-2xl p-6 shadow-xl">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">🏆 Leaderboard</h1>
-          <p className="text-xs text-slate-400 mt-1">Ranked by overall net token balance</p>
+          <h1 className="text-2xl font-bold text-black">🏆 Leaderboard</h1>
         </div>
-        <span className="text-xs bg-slate-800 text-cyan-400 border border-slate-700 px-3 py-1 rounded-full font-mono">
-          {profiles.length} Active Bettors
+        <span className="text-xs bg-blue-200 text-blue-900 border border-black px-3 py-1 rounded-full font-mono">
+          {profiles.length} Active Users!
         </span>
       </div>
 
@@ -68,10 +67,10 @@ export default function LeaderboardPanel() {
                 rank === 1
                   ? 'bg-amber-500/10 border-amber-500/30'
                   : rank === 2
-                  ? 'bg-slate-300/10 border-slate-400/30'
+                  ? 'bg-blue-300/10 border-blue-400/30'
                   : rank === 3
                   ? 'bg-amber-700/10 border-amber-700/30'
-                  : 'bg-slate-800/40 border-slate-800'
+                  : 'bg-blue-800/40 border-blue-800'
               }`}
             >
               {/* Rank & User Info */}
@@ -79,12 +78,12 @@ export default function LeaderboardPanel() {
                 <span
                   className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold text-xs ${
                     rank === 1
-                      ? 'bg-amber-500 text-slate-950'
+                      ? 'bg-amber-500 text-blue-950'
                       : rank === 2
-                      ? 'bg-slate-300 text-slate-950'
+                      ? 'bg-blue-300 text-blue-950'
                       : rank === 3
                       ? 'bg-amber-700 text-white'
-                      : 'bg-slate-800 text-slate-400'
+                      : 'bg-blue-800 text-blue-400'
                   }`}
                 >
                   {rank}
@@ -95,27 +94,27 @@ export default function LeaderboardPanel() {
                   <img
                     src={profile.avatar_url}
                     alt={profile.username}
-                    className="w-9 h-9 rounded-full object-cover border border-slate-700"
+                    className="w-9 h-9 rounded-full object-cover border border-black"
                   />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-cyan-400">
+                  <div className="w-9 h-9 rounded-full bg-blue-800 border border-blue-700 flex items-center justify-center text-xs font-bold text-cyan-400">
                     {profile.username.substring(0, 2).toUpperCase()}
                   </div>
                 )}
 
                 {/* Handles */}
                 <div className="flex flex-col">
-                  <span className="font-semibold text-sm text-slate-100">
+                  <span className="font-semibold text-sm text-black">
                     {profile.display_name || profile.username}
                   </span>
-                  <span className="text-xs text-slate-400">@{profile.username}</span>
+                  <span className="text-xs text-slate-600">@{profile.username}</span>
                 </div>
               </div>
 
               {/* Balance */}
               <div className="text-right">
-                <div className="font-mono font-bold text-cyan-400 text-sm">
-                  {Number(profile.balance).toLocaleString()} pts
+                <div className="font-mono font-bold text-blue-800 text-sm">
+                  ⚫ {Number(profile.balance).toLocaleString()}
                 </div>
               </div>
             </div>

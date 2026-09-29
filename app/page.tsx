@@ -1,10 +1,14 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import Image from 'next/image';
 import BlueskyLoginModal from '@/components/BlueskyLogin';
 import NHLWeekDay from '@/components/NHLWeekDay';
 import Footer from '@/components/Footer';
 import InfoModal from '@/components/InfoModal';
+
+import banner from '@/img/blueline bannerish.png';
+import LeaderboardPanel from '@/components/Leaderboard';
 
 export interface Game {
   id: string;
@@ -138,29 +142,28 @@ export default function Home() {
   }, [viewDate]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-blue-50 text-blue-100 flex flex-col font-sans">
       {/* 1. HEADER */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+      <header className="border-b-4 border-slate-900 bg-blue-400/50 backdrop-blur px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+      <div></div>
         <div className="flex items-center gap-3">
-          <div className="bg-cyan-500 text-slate-950 font-black p-2 rounded-lg text-xl tracking-wider">
-            BLUELINE HOCKEY
-          </div>
+          <Image src={banner} alt='BlueLine'></Image>
         </div>
 
         {!userProfile?.handle && (
           <button 
             onClick={() => setIsLoginOpen(true)}
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm transition"
+            className="bg-cyan-500 hover:bg-cyan-400 text-blue-950 font-bold px-4 py-2 rounded-xl text-sm transition"
           >
             Login with Bluesky
           </button>
         )}
         {userProfile?.handle && (
           <div className="flex items-center gap-4">
-            <div className="bg-slate-800 border border-slate-700 px-4 py-1.5 rounded-full flex items-center gap-2">
+            <div className="bg-blue-800/20 border-2 border-slate-900 px-4 py-1.5 rounded-full flex items-center gap-2">
               <span className="text-amber-400 font-bold">⚫</span>
-              <span className="font-semibold text-amber-400">{balance.toLocaleString()}</span>
-              <span className="text-xs text-slate-400">PUCKS</span>
+              <span className="font-bold text-amber-200">{balance.toLocaleString()}</span>
+              <span className="text-s font-extrabold text-slate-800">PUCKS</span>
             </div>
             <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center font-bold text-sm overflow-hidden">
               <img 
@@ -181,8 +184,8 @@ export default function Home() {
             onClick={() => setActiveView('games')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-left transition ${
               activeView === 'games'
-                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                ? 'bg-blue-500/10 text-slate-900 border-2 border-slate-900'
+                : 'text-slate-900 hover:bg-blue-500/10'
             }`}
           >
             🏒 All Games
@@ -191,8 +194,8 @@ export default function Home() {
             onClick={() => setActiveView('myteams')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-left transition ${
               activeView === 'myteams'
-                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                ? 'bg-blue-500/10 text-slate-900 border-2 border-slate-900'
+                : 'text-slate-900 hover:bg-blue-500/10'
             }`}
           >
             👥 My Teams
@@ -201,8 +204,8 @@ export default function Home() {
             onClick={() => setActiveView('idleteam')}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-left transition ${
               activeView === 'idleteam'
-                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
-                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                ? 'bg-blue-500/10 text-slate-900 border-2 border-slate-900'
+                : 'text-slate-900 hover:bg-blue-500/10'
             }`}
           >
             ⏳ Fantasy Idle
@@ -228,32 +231,28 @@ export default function Home() {
           )}
 
           {activeView === 'myteams' && (
-            <h2 className="text-base font-bold text-gray-200">"my teams" is not finished yet :-)</h2>
+            <h2 className="text-base font-bold text-black">"my teams" is not finished yet :-)</h2>
           )}
 
           {activeView === 'idleteam' && (
-            <h2 className="text-base font-bold text-gray-200">"fantasy idle" is not finished yet :-)</h2>
+            <h2 className="text-base font-bold text-black">"fantasy idle" is not finished yet :-)</h2>
           )}
         </main>
 
         {/* RIGHT SOCIAL SIDEBAR */}
         <aside className="lg:col-span-4 flex flex-col gap-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-            <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
-              🏆 Leaderboard
-            </h2>
-          </div>
+          <LeaderboardPanel></LeaderboardPanel>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col h-80">
-            <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
-              💬 Chat Room
+          <div className="bg-blue-100 border-2 border-slate-900 rounded-2xl p-5 flex flex-col h-80">
+            <h2 className="font-bold text-black text-lg mb-3 flex items-center gap-2">
+              🗣️ Shout Box
             </h2>
             
             <div className="flex-1 overflow-y-auto flex flex-col gap-2.5 pr-1 text-sm mb-3">
               {chatMessages.map((msg, index) => (
-                <div key={index} className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-800">
-                  <span className="font-bold text-cyan-400 text-xs block">{msg.user}</span>
-                  <span className="text-slate-200">{msg.text}</span>
+                <div key={index} className="bg-white p-2.5 rounded-xl border border-slate-900">
+                  <span className="font-bold text-blue-800 text-s block">{msg.user}</span>
+                  <span className="text-slate-500 font-semibold">{msg.text}</span>
                 </div>
               ))}
             </div>
@@ -264,11 +263,11 @@ export default function Home() {
                 placeholder="Say something..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 text-slate-100 placeholder-slate-500"
+                className="flex-1 bg-blue-100 border border-black rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 text-blue-100 placeholder-black"
               />
               <button
                 type="submit"
-                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm transition"
+                className="bg-blue-200 hover:bg-blue-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition"
               >
                 Send
               </button>

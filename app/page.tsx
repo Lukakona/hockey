@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import BlueskyLoginModal from '@/components/BlueskyLogin';
@@ -26,6 +26,23 @@ export interface Game {
   venue: string;
 }
 
+// Raw row from the granular `live_games` table
+export interface LiveGame {
+  id?: string;
+  nhl_game_id: number;
+  home_score: number | null;
+  away_score: number | null;
+  period: number | null;
+  seconds_left: number | null;
+  in_intermission: boolean | null;
+  updated_at?: string;
+}
+
+// A scheduled game enriched with its live detail (when available)
+export interface EnrichedGame extends Game {
+  live: LiveGame | null;
+}
+
 type ActiveView = 'games' | 'myteams' | 'idleteam';
 
 function getCookie(name: string): string | null {
@@ -38,8 +55,23 @@ function getCookie(name: string): string | null {
   return null;
 }
 
+// Collapse live_games rows into a single latest row per game id
+function toLiveMap(rows: LiveGame[]): Record<number, LiveGame> {
+  const map: Record<number, LiveGame> = {};
+  for (const row of rows) {
+    const prev = map[row.nhl_game_id];
+    const prevTime = prev?.updated_at ? Date.parse(prev.updated_at) : 0;
+    const rowTime = row.updated_at ? Date.parse(row.updated_at) : 0;
+    if (!prev || rowTime >= prevTime) {
+      map[row.nhl_game_id] = row;
+    }
+  }
+  return map;
+}
+
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
+  const [liveGames, setLiveGames] = useState<Record<number, LiveGame>>({});
   const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<{ handle: string; avatar: string; did: string } | null>(null);
   const [viewDate, setViewDate] = useState<Date>(new Date());
@@ -52,7 +84,13 @@ export default function Home() {
     { user: 'ImprisonedBeast@darkness.zone', text: 'aaaaaah let me out of here' },
   ]);
   const [newMessage, setNewMessage] = useState('');
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+
+  // Single source of truth for rendering: schedule rows joined with live detail
+  const enrichedGames = useMemo<EnrichedGame[]>(
+    () => games.map((g) => ({ ...g, live: liveGames[g.nhl_game_id] ?? null })),
+    [games, liveGames]
+  );
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,24 +160,53 @@ export default function Home() {
       const end_of_day = new Date(viewDate);
       end_of_day.setHours(23, 59, 59, 999);
 
-      const { data, error } = await supabase
-        .from('games')
-        .select('*')
-        .gte('start_utc', start_of_day.toISOString())
-        .lte('start_utc', end_of_day.toISOString())
-        .order('updated_at', { ascending: false });
+      const [gamesRes, liveRes] = await Promise.all([
+        supabase
+          .from('games')
+          .select('*')
+          .gte('start_utc', start_of_day.toISOString())
+          .lte('start_utc', end_of_day.toISOString())
+          .order('updated_at', { ascending: false }),
+        supabase.from('live_games').select('*'),
+      ]);
 
-      if (error) {
-        console.error('Error fetching games:', error.message);
-      } else if (data) {
-        setGames(data);
+      if (gamesRes.error) {
+        console.error('Error fetching games:', gamesRes.error.message);
+      } else if (gamesRes.data) {
+        setGames(gamesRes.data);
       }
+
+      if (liveRes.error) {
+        console.error('Error fetching live games:', liveRes.error.message);
+        setLiveGames({});
+      } else if (liveRes.data) {
+        setLiveGames(toLiveMap(liveRes.data as LiveGame[]));
+      }
+
       setLoading(false);
     }
 
     fetchGames();
     loadUserData();
-  }, [viewDate]);
+  }, [viewDate, supabase]);
+
+  // Poll the granular live data while any game is in progress
+  useEffect(() => {
+    const hasLiveGames = games.some((g) => g.status === 'LIVE');
+    if (!hasLiveGames) return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      const { data, error } = await supabase.from('live_games').select('*');
+      if (cancelled || error || !data) return;
+      setLiveGames(toLiveMap(data as LiveGame[]));
+    }, 20000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [games, supabase]);
 
   return (
     <div className="min-h-screen bg-blue-50 text-blue-100 flex flex-col font-sans">
@@ -216,7 +283,7 @@ export default function Home() {
         <main className="lg:col-span-6 flex flex-col gap-6">
           {activeView === 'games' && (
             <NHLWeekDay 
-              games={games} 
+              games={enrichedGames} 
               date={viewDate} 
               balance={balance} 
               placeBet={(wager: number) => setBalance((prev) => prev - wager)} 

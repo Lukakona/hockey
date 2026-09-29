@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { Game } from '@/app/page';
-import { Timestamp } from 'next/dist/server/lib/cache-handlers/types';
+import type { EnrichedGame, Game } from '@/app/page';
 
 interface Profile {
   id: string;
@@ -20,7 +19,7 @@ export default function NHLWeekDay( {
   placeBet,
   changeDate
 }: {
-  games: Game[];
+  games: EnrichedGame[];
   date: Date;
   balance: number
   placeBet: (wager: number) => void;
@@ -102,7 +101,7 @@ export default function NHLWeekDay( {
 
                     <div className="p-4 pt-1 flex flex-col gap-4 border-t border-black">
                         {liveGames.map((game) => (
-                        <GameCard key={game.id} game={game} onSelectBet={setSelectedBet} />
+                        <LiveGameCard key={game.id} game={game} onSelectBet={setSelectedBet} />
                         ))}
                     </div>
                     </details>
@@ -173,7 +172,6 @@ function GameCard({
   const isLive = game.status === 'LIVE' || game.status === 'CRIT';
   const hasScore = game.score != null;
   const date = new Date(game.start_utc + 'Z');
-  console.log(date);
 
   return (
     <div className="bg-blue-100 border-2 border-black rounded-2xl p-5 shadow-lg relative overflow-hidden">
@@ -194,7 +192,15 @@ function GameCard({
           {isLive && (
             <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
           )}
-          {game.period_info || date.toLocaleTimeString()}
+          {game.status === 'PRE' && (
+            <p>Starting soon...</p>
+          )}
+          {game.status === 'LIVE' && (
+            game.period_info
+          )}
+          {game.status === 'FUT' && (
+            date.toLocaleTimeString()
+          )}
         </span>
         <span className="text-slate-600 font-mono">{game.venue}</span>
       </div>
@@ -237,4 +243,127 @@ function GameCard({
         </div>
     </div>
   );
+}
+
+function LiveGameCard({
+  game,
+  onSelectBet,
+}: {
+  game: EnrichedGame;
+  onSelectBet: (bet: { label: string; odds: number; gameId: string }) => void;
+}) {
+  const live = game.live;
+  const isIntermission = !!live?.in_intermission;
+  const tickingSeconds = useTickingClock(live?.seconds_left, !isIntermission);
+  const hasLiveScore = live?.away_score != null && live?.home_score != null;
+  const scoreText = hasLiveScore
+    ? `${live!.away_score} - ${live!.home_score}`
+    : game.score;
+  const clockText = isIntermission ? 'Intermission' : formatClock(tickingSeconds);
+
+  return (
+    <div className="bg-blue-100 border-2 border-black rounded-2xl p-5 shadow-lg relative overflow-hidden">
+    <div className="absolute top-0 left-0 right-0 h-1 bg-red-500 animate-pulse" />
+
+      {/* Status Header */}
+      <div className="flex justify-between items-center mb-4 text-xs font-semibold">
+        <span className="text-red-500 flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-red-500 inline-block animate-pulse" />
+          {game.period_info}
+          {isIntermission && (
+            <span className="ml-1 text-blue-950 border border-black rounded-md px-1.5 py-0.5 tracking-wide">
+              Intermission
+            </span>
+          )}
+        </span>
+        <span className="text-slate-600 font-mono">{game.venue}</span>
+      </div>
+
+        {/* Teams & Score */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-2">
+        {/* Away Team Column */}
+        <div className="flex items-center gap-2 min-w-0">
+            <img
+            src={game.away_icon}
+            alt={game.away_team}
+            className="w-9 h-9 rounded-full object-cover border border-black shrink-0"
+            />
+            <div className="font-bold text-base sm:text-lg truncate">
+            {game.away_team}
+            </div>
+        </div>
+
+        {/* Center Score Column */}
+        <div className="flex flex-col items-center justify-center text-center gap-1">
+            <div className="border-2 text-black px-3 py-1 rounded-lg font-black tracking-widest text-sm whitespace-nowrap">
+                {scoreText}
+            </div>
+            <div className="text-[11px] font-mono font-bold text-blue-900 whitespace-nowrap">
+                {live?.period ? `P${live.period}` : '—'}
+                {clockText ? ` · ${clockText}` : ''}
+            </div>
+        </div>
+
+        {/* Home Team Column */}
+        <div className="flex items-center justify-end gap-2 min-w-0">
+            <div className="font-bold text-base sm:text-lg text-right truncate">
+            {game.home_team}
+            </div>
+            <img
+            src={game.home_icon}
+            alt={game.home_team}
+            className="w-9 h-9 rounded-full object-cover border border-black shrink-0"
+            />
+        </div>
+        </div>
+    </div>
+  );
+}
+
+// Turns remaining seconds (from live_games) into M:SS
+function formatClock(seconds: number | null | undefined): string {
+  if (seconds == null) return '';
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Ticks a countdown locally between server polls.
+// `seconds` is the authoritative value from live_games; every time it changes,
+// the clock re-anchors to it, so the local ticks never drift far from the server.
+// Anchoring to Date.now() (instead of decrementing a counter) keeps it accurate
+// even if the browser throttles timers while the tab is in the background.
+function useTickingClock(
+  seconds: number | null | undefined,
+  running: boolean
+): number | null {
+  const [display, setDisplay] = useState<number | null>(seconds ?? null);
+  const anchor = useRef<{ seconds: number; at: number } | null>(null);
+
+  // Re-anchor whenever a fresh authoritative value arrives
+  useEffect(() => {
+    anchor.current = seconds == null ? null : { seconds, at: Date.now() };
+  }, [seconds]);
+
+  // Tick once per second while the clock is running
+  useEffect(() => {
+    if (!running) return;
+
+    const update = () => {
+      const a = anchor.current;
+      setDisplay(
+        a ? Math.max(0, a.seconds - Math.floor((Date.now() - a.at) / 1000)) : null
+      );
+    };
+
+    // Refresh immediately after a re-anchor, then once per second
+    const warmup = setTimeout(update, 0);
+    const id = setInterval(update, 1000);
+    return () => {
+      clearTimeout(warmup);
+      clearInterval(id);
+    };
+  }, [running, seconds]);
+
+  return display;
 }

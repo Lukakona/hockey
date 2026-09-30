@@ -101,7 +101,7 @@ export default function NHLWeekDay( {
 
                     <div className="p-4 pt-1 flex flex-col gap-4 border-t border-black">
                         {liveGames.map((game) => (
-                        <LiveGameCard key={game.id} game={game} onSelectBet={setSelectedBet} />
+                        <LiveGameCard key={game.nhl_game_id} game={game} onSelectBet={setSelectedBet} />
                         ))}
                     </div>
                     </details>
@@ -123,7 +123,7 @@ export default function NHLWeekDay( {
 
                     <div className="p-4 pt-1 flex flex-col gap-4 border-t border-black">
                         {upcomingGames.map((game) => (
-                        <GameCard key={game.id} game={game} onSelectBet={setSelectedBet} />
+                        <GameCard key={game.nhl_game_id} game={game} onSelectBet={setSelectedBet} />
                         ))}
                     </div>
                     </details>
@@ -145,7 +145,7 @@ export default function NHLWeekDay( {
 
                     <div className="p-4 pt-1 flex flex-col gap-4 border-t border-black">
                         {finishedGames.map((game) => (
-                        <GameCard key={game.id} game={game} onSelectBet={setSelectedBet} />
+                        <GameCard key={game.nhl_game_id} game={game} onSelectBet={setSelectedBet} />
                         ))}
                     </div>
                     </details>
@@ -269,12 +269,12 @@ function LiveGameCard({
       <div className="flex justify-between items-center mb-4 text-xs font-semibold">
         <span className="text-red-500 flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-red-500 inline-block animate-pulse" />
-          {game.period_info}
           {isIntermission && (
             <span className="ml-1 text-blue-950 border border-black rounded-md px-1.5 py-0.5 tracking-wide">
               Intermission
             </span>
           )}
+          {isIntermission || 'LIVE'}
         </span>
         <span className="text-slate-600 font-mono">{game.venue}</span>
       </div>
@@ -328,11 +328,6 @@ function formatClock(seconds: number | null | undefined): string {
   return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Ticks a countdown locally between server polls.
-// `seconds` is the authoritative value from live_games; every time it changes,
-// the clock re-anchors to it, so the local ticks never drift far from the server.
-// Anchoring to Date.now() (instead of decrementing a counter) keeps it accurate
-// even if the browser throttles timers while the tab is in the background.
 function useTickingClock(
   seconds: number | null | undefined,
   running: boolean

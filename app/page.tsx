@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import BlueskyLoginModal from '@/components/BlueskyLogin';
@@ -101,6 +101,36 @@ export default function Home() {
     setNewMessage('');
   };
 
+  const fetchGames = useCallback(async (): Promise<Game[] | null> => {
+    const start_of_day = new Date(viewDate);
+    start_of_day.setHours(0, 0, 0, 0);
+
+    const end_of_day = new Date(viewDate);
+    end_of_day.setHours(23, 59, 59, 999);
+
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .gte('start_utc', start_of_day.toISOString())
+      .lte('start_utc', end_of_day.toISOString())
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching games:', error.message);
+      return null;
+    }
+    return data;
+  }, [supabase, viewDate]);
+
+  const fetchLiveGames = useCallback(async (): Promise<Record<number, LiveGame> | null> => {
+    const { data, error } = await supabase.from('live_games').select('*');
+    if (error) {
+      console.error('Error fetching live games:', error.message);
+      return null;
+    }
+    return data ? toLiveMap(data as LiveGame[]) : null;
+  }, [supabase]);
+
   useEffect(() => {
     async function loadUserData() {
       // 1. Read URL params or cookies for identity
@@ -152,61 +182,43 @@ export default function Home() {
       setLoading(false);
     }
 
-    async function fetchGames() {
-      setLoading(true);
-      const start_of_day = new Date(viewDate);
-      start_of_day.setHours(0, 0, 0, 0);
-
-      const end_of_day = new Date(viewDate);
-      end_of_day.setHours(23, 59, 59, 999);
-
-      const [gamesRes, liveRes] = await Promise.all([
-        supabase
-          .from('games')
-          .select('*')
-          .gte('start_utc', start_of_day.toISOString())
-          .lte('start_utc', end_of_day.toISOString())
-          .order('updated_at', { ascending: false }),
-        supabase.from('live_games').select('*'),
+    async function refreshGames() {
+      const [gamesData, liveData] = await Promise.all([
+        fetchGames(),
+        fetchLiveGames(),
       ]);
-
-      if (gamesRes.error) {
-        console.error('Error fetching games:', gamesRes.error.message);
-      } else if (gamesRes.data) {
-        setGames(gamesRes.data);
-      }
-
-      if (liveRes.error) {
-        console.error('Error fetching live games:', liveRes.error.message);
-        setLiveGames({});
-      } else if (liveRes.data) {
-        setLiveGames(toLiveMap(liveRes.data as LiveGame[]));
-      }
-
-      setLoading(false);
+      if (gamesData) setGames(gamesData);
+      if (liveData) setLiveGames(liveData);
     }
 
-    fetchGames();
+    refreshGames();
     loadUserData();
-  }, [viewDate, supabase]);
+  }, [fetchGames, fetchLiveGames, supabase]);
+
+  // Keep the schedule rows fresh so status flips FUT -> LIVE -> FINAL without a
+  // manual reload. sync-games only runs every 15 min, so a couple of minutes is plenty.
+  useEffect(() => {
+    const isToday = new Date().toDateString() === viewDate.toDateString();
+    if (!isToday) return;
+
+    const id = setInterval(async () => {
+      const data = await fetchGames();
+      if (data) setGames(data);
+    }, 2 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [fetchGames, viewDate]);
 
   // Poll the granular live data while any game is in progress
   useEffect(() => {
     const hasLiveGames = games.some((g) => g.status === 'LIVE');
     if (!hasLiveGames) return;
 
-    let cancelled = false;
-    const interval = setInterval(async () => {
-      const { data, error } = await supabase.from('live_games').select('*');
-      if (cancelled || error || !data) return;
-      setLiveGames(toLiveMap(data as LiveGame[]));
-    }, 20000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [games, supabase]);
+    const id = setInterval(async () => {
+      const data = await fetchLiveGames();
+      if (data) setLiveGames(data);
+    }, 60000);
+    return () => clearInterval(id);
+  }, [games, fetchLiveGames]);
 
   return (
     <div className="min-h-screen bg-blue-50 text-blue-100 flex flex-col font-sans">

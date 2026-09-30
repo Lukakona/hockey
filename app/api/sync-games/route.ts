@@ -1,6 +1,31 @@
-// Queries the full schedule for the week. We can do this once a week to write to the database, so we only store this weeks games.
+// Queries the full schedule for the week and upserts it into `games`.
+// Upserting on nhl_game_id keeps row ids stable across runs (no empty-table
+// window, no id churn), then we prune anything that dropped out of the week.
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+
+interface NhlScheduleGame {
+  id: number;
+  gameState: string;
+  startTimeUTC: string;
+  venue: { default: string };
+  periodDescriptor?: { number?: number };
+  clock?: { timeRemaining?: string };
+  homeTeam: {
+    commonName: { default: string };
+    logo: string;
+    radioLink: string;
+  };
+  awayTeam: {
+    commonName: { default: string };
+    logo: string;
+    radioLink: string;
+  };
+}
+
+interface NhlScheduleResponse {
+  gameWeek?: Array<{ games: NhlScheduleGame[] }>;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,16 +51,15 @@ export async function GET(req: NextRequest) {
       throw new Error(`NHL API error status: ${res.status}`);
     }
 
-    const data = await res.json();
-    console.log(data.gameWeek);
-    const gamesThisWeek = data.gameWeek.flatMap((day: any) => day.games) || [];
+    const data = (await res.json()) as NhlScheduleResponse;
+    const gamesThisWeek = data.gameWeek?.flatMap((day) => day.games) ?? [];
 
     if (gamesThisWeek.length === 0) {
       return NextResponse.json({ message: 'No games scheduled.' });
     }
 
     // gameWeek property has all games for the week
-    const formattedGames = gamesThisWeek.map((g: any) => {
+    const formattedGames = gamesThisWeek.map((g) => {
       // Game states: 'FUT' (Future/Scheduled), 'LIVE', 'OFF' / 'FINAL'
       const status = g.gameState;
 
@@ -61,31 +85,39 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // cleanse games before the upsert, so we dont keep stale data
     const supabase = await createClient();
-    const { error: deleteError } = await supabase.from('games').delete().neq('nhl_game_id', 0);
 
-    if(deleteError){
-      console.error('Supabase Delete Error: ', deleteError.message);
-      return NextResponse.json({error: deleteError.message}, {status: 500})
-    }
-    const { data: insertedData, error } = await supabase
+    // Upsert the current week's games; existing rows keep their id
+    const { data: upsertedData, error } = await supabase
       .from('games')
-      .insert(formattedGames)
+      .upsert(formattedGames, { onConflict: 'nhl_game_id' })
       .select();
 
     if (error) {
-      console.error('Supabase Insert Error:', error.message);
+      console.error('Supabase Upsert Error:', error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Prune anything that dropped out of the current week (i.e. last week's games)
+    const currentIds = formattedGames.map((g) => g.nhl_game_id);
+    const { error: pruneError } = await supabase
+      .from('games')
+      .delete()
+      .not('nhl_game_id', 'in', `(${currentIds.join(',')})`);
+
+    if (pruneError) {
+      console.error('Supabase Prune Error:', pruneError.message);
+      return NextResponse.json({ error: pruneError.message }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      synced_count: insertedData?.length || 0,
-      games: insertedData,
+      synced_count: upsertedData?.length || 0,
+      games: upsertedData,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('NHL Sync Failed:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

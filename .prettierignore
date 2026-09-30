@@ -1,0 +1,14 @@
+# Dependencies
+node_modules
+
+# Next.js build output
+.next
+out
+build
+
+# Generated / lockfiles
+package-lock.json
+next-env.d.ts
+
+# Test / coverage output
+coverage

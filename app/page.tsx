@@ -9,6 +9,7 @@ import InfoModal from '@/components/InfoModal';
 
 import banner from '@/img/blueline bannerish.png';
 import LeaderboardPanel from '@/components/Leaderboard';
+import Shoutbox from '@/components/Shoutbox';
 
 export interface Game {
   id: string;
@@ -73,17 +74,17 @@ export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
   const [liveGames, setLiveGames] = useState<Record<number, LiveGame>>({});
   const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
-  const [userProfile, setUserProfile] = useState<{ handle: string; avatar: string; did: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{
+    id: string;
+    handle: string;
+    avatar: string;
+    did: string;
+  } | null>(null);
   const [viewDate, setViewDate] = useState<Date>(new Date());
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>('games');
   const [loading, setLoading] = useState<boolean>(true);
   const [balance, setBalance] = useState<number>(0);
-  const [chatMessages, setChatMessages] = useState([
-    { user: 'the chatter@bsky.social', text: "I'm using tilt controls!" },
-    { user: 'ImprisonedBeast@darkness.zone', text: 'aaaaaah let me out of here' },
-  ]);
-  const [newMessage, setNewMessage] = useState('');
   const supabase = useMemo(() => createClient(), []);
 
   // Single source of truth for rendering: schedule rows joined with live detail
@@ -91,15 +92,6 @@ export default function Home() {
     () => games.map((g) => ({ ...g, live: liveGames[g.nhl_game_id] ?? null })),
     [games, liveGames]
   );
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-
-    const sender = userProfile ? `@${userProfile.handle}` : 'You';
-    setChatMessages((prev) => [...prev, { user: sender, text: newMessage }]);
-    setNewMessage('');
-  };
 
   const fetchGames = useCallback(async (): Promise<Game[] | null> => {
     const start_of_day = new Date(viewDate);
@@ -161,7 +153,7 @@ export default function Home() {
       // 2. Fetch the latest balance & profile data from Supabase using bsky_did
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('balance, username, avatar_url')
+        .select('id, balance, username, avatar_url')
         .eq('bsky_did', did)
         .maybeSingle();
 
@@ -174,6 +166,7 @@ export default function Home() {
       // 3. Update component states
       setBalance(userBalance);
       setUserProfile({
+        id: profile?.id ?? '',
         did,
         handle: profile?.username || handle || '',
         avatar: profile?.avatar_url || avatar || '',
@@ -183,10 +176,7 @@ export default function Home() {
     }
 
     async function refreshGames() {
-      const [gamesData, liveData] = await Promise.all([
-        fetchGames(),
-        fetchLiveGames(),
-      ]);
+      const [gamesData, liveData] = await Promise.all([fetchGames(), fetchLiveGames()]);
       if (gamesData) setGames(gamesData);
       if (liveData) setLiveGames(liveData);
     }
@@ -201,10 +191,13 @@ export default function Home() {
     const isToday = new Date().toDateString() === viewDate.toDateString();
     if (!isToday) return;
 
-    const id = setInterval(async () => {
-      const data = await fetchGames();
-      if (data) setGames(data);
-    }, 2 * 60 * 1000);
+    const id = setInterval(
+      async () => {
+        const data = await fetchGames();
+        if (data) setGames(data);
+      },
+      2 * 60 * 1000
+    );
     return () => clearInterval(id);
   }, [fetchGames, viewDate]);
 
@@ -221,34 +214,34 @@ export default function Home() {
   }, [games, fetchLiveGames]);
 
   return (
-    <div className="min-h-screen bg-blue-50 text-blue-100 flex flex-col font-sans">
+    <div className="flex min-h-screen flex-col bg-blue-50 font-sans text-blue-100">
       {/* 1. HEADER */}
-      <header className="border-b-4 border-slate-900 bg-blue-400/50 backdrop-blur px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-      <div></div>
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b-4 border-slate-900 bg-blue-400/50 px-6 py-4 backdrop-blur">
+        <div></div>
         <div className="flex items-center gap-3">
-          <Image src={banner} alt='BlueLine'></Image>
+          <Image src={banner} alt="BlueLine"></Image>
         </div>
 
         {!userProfile?.handle && (
-          <button 
+          <button
             onClick={() => setIsLoginOpen(true)}
-            className="bg-cyan-500 hover:bg-cyan-400 text-blue-950 font-bold px-4 py-2 rounded-xl text-sm transition"
+            className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-bold text-blue-950 transition hover:bg-cyan-400"
           >
             Login with Bluesky
           </button>
         )}
         {userProfile?.handle && (
           <div className="flex items-center gap-4">
-            <div className="bg-blue-800/20 border-2 border-slate-900 px-4 py-1.5 rounded-full flex items-center gap-2">
-              <span className="text-amber-400 font-bold">⚫</span>
+            <div className="flex items-center gap-2 rounded-full border-2 border-slate-900 bg-blue-800/20 px-4 py-1.5">
+              <span className="font-bold text-amber-400">⚫</span>
               <span className="font-bold text-amber-200">{balance.toLocaleString()}</span>
               <span className="text-s font-extrabold text-slate-800">PUCKS</span>
             </div>
-            <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center font-bold text-sm overflow-hidden">
-              <img 
-                src={userProfile.avatar} 
-                alt={userProfile.handle} 
-                className="w-full h-full object-cover"
+            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-cyan-600 text-sm font-bold">
+              <img
+                src={userProfile.avatar}
+                alt={userProfile.handle}
+                className="h-full w-full object-cover"
               />
             </div>
           </div>
@@ -256,14 +249,14 @@ export default function Home() {
       </header>
 
       {/* 2. BODY LAYOUT */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 max-w-7xl w-full mx-auto p-4 md:p-6 gap-6">
+      <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-6 p-4 md:p-6 lg:grid-cols-12">
         {/* LEFT NAV SIDEBAR */}
-        <nav className="lg:col-span-2 hidden lg:flex flex-col gap-2">
+        <nav className="hidden flex-col gap-2 lg:col-span-2 lg:flex">
           <button
             onClick={() => setActiveView('games')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-left transition ${
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left font-medium transition ${
               activeView === 'games'
-                ? 'bg-blue-500/10 text-slate-900 border-2 border-slate-900'
+                ? 'border-2 border-slate-900 bg-blue-500/10 text-slate-900'
                 : 'text-slate-900 hover:bg-blue-500/10'
             }`}
           >
@@ -271,9 +264,9 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveView('myteams')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-left transition ${
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left font-medium transition ${
               activeView === 'myteams'
-                ? 'bg-blue-500/10 text-slate-900 border-2 border-slate-900'
+                ? 'border-2 border-slate-900 bg-blue-500/10 text-slate-900'
                 : 'text-slate-900 hover:bg-blue-500/10'
             }`}
           >
@@ -281,9 +274,9 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveView('idleteam')}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-left transition ${
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left font-medium transition ${
               activeView === 'idleteam'
-                ? 'bg-blue-500/10 text-slate-900 border-2 border-slate-900'
+                ? 'border-2 border-slate-900 bg-blue-500/10 text-slate-900'
                 : 'text-slate-900 hover:bg-blue-500/10'
             }`}
           >
@@ -292,13 +285,13 @@ export default function Home() {
         </nav>
 
         {/* MAIN DASHBOARD CONTENT */}
-        <main className="lg:col-span-6 flex flex-col gap-6">
+        <main className="flex flex-col gap-6 lg:col-span-6">
           {activeView === 'games' && (
-            <NHLWeekDay 
-              games={enrichedGames} 
-              date={viewDate} 
-              balance={balance} 
-              placeBet={(wager: number) => setBalance((prev) => prev - wager)} 
+            <NHLWeekDay
+              games={enrichedGames}
+              date={viewDate}
+              balance={balance}
+              placeBet={(wager: number) => setBalance((prev) => prev - wager)}
               changeDate={(days: number) => {
                 setViewDate((prev) => {
                   const newDate = new Date(prev);
@@ -314,44 +307,17 @@ export default function Home() {
           )}
 
           {activeView === 'idleteam' && (
-            <h2 className="text-base font-bold text-black">"fantasy idle" is not finished yet :-)</h2>
+            <h2 className="text-base font-bold text-black">
+              "fantasy idle" is not finished yet :-)
+            </h2>
           )}
         </main>
 
         {/* RIGHT SOCIAL SIDEBAR */}
-        <aside className="lg:col-span-4 flex flex-col gap-6">
+        <aside className="flex flex-col gap-6 lg:col-span-4">
           <LeaderboardPanel></LeaderboardPanel>
 
-          <div className="bg-blue-100 border-2 border-slate-900 rounded-2xl p-5 flex flex-col h-80">
-            <h2 className="font-bold text-black text-lg mb-3 flex items-center gap-2">
-              🗣️ Shout Box
-            </h2>
-            
-            <div className="flex-1 overflow-y-auto flex flex-col gap-2.5 pr-1 text-sm mb-3">
-              {chatMessages.map((msg, index) => (
-                <div key={index} className="bg-white p-2.5 rounded-xl border border-slate-900">
-                  <span className="font-bold text-blue-800 text-s block">{msg.user}</span>
-                  <span className="text-slate-500 font-semibold">{msg.text}</span>
-                </div>
-              ))}
-            </div>
-
-            <form onSubmit={handleSendMessage} className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Say something..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 bg-blue-100 border border-black rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 text-blue-100 placeholder-black"
-              />
-              <button
-                type="submit"
-                className="bg-blue-200 hover:bg-blue-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition"
-              >
-                Send
-              </button>
-            </form>
-          </div>
+          <Shoutbox userProfile={userProfile}></Shoutbox>
         </aside>
       </div>
 

@@ -11,8 +11,10 @@ import type { NextRequest } from 'next/server';
  * hosted deployment).
  */
 
-/** Scopes requested during login. `transition:generic` allows generic AppView RPC. */
-export const OAUTH_SCOPE = 'atproto transition:generic';
+/**
+ * Scopes requested during login.
+ */
+export const OAUTH_SCOPE = 'atproto';
 
 /** Route that serves the OAuth client metadata document (the `client_id` URL). */
 export const CLIENT_METADATA_PATH = '/oauth-client-metadata.json';

@@ -1,5 +1,6 @@
-// Refreshes the granular live_games table for every game currently marked LIVE,
-// and upserts the same games' events into `play_by_play`.
+// Refreshes the granular live_games table for every game currently marked LIVE
+// or CRIT (critical — e.g. overtime), and upserts the same games' events into
+// `play_by_play`.
 // Intended to be triggered on a schedule (see vercel.json).
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
@@ -109,11 +110,11 @@ export async function GET(req: NextRequest) {
 
     const supabase = await createClient();
 
-    // Check live games, we only retrieve those.
+    // Only games that are currently in progress are refreshed.
     const { data: liveGames, error: liveError } = await supabase
       .from('games')
       .select('nhl_game_id')
-      .eq('status', 'LIVE');
+      .in('status', ['LIVE', 'CRIT']);
 
     if (liveError) {
       console.error('Supabase Read Error:', liveError.message);

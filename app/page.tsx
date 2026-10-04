@@ -262,7 +262,7 @@ export default function Home() {
 
   // Poll the granular live data while any game is in progress
   useEffect(() => {
-    const hasLiveGames = games.some((g) => g.status === 'LIVE');
+    const hasLiveGames = games.some((g) => g.status === 'LIVE' || g.status === 'CRIT');
     if (!hasLiveGames) return;
 
     const id = setInterval(async () => {

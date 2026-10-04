@@ -166,15 +166,6 @@ export default function FullGameDetails({ game }: { game: EnrichedGame }) {
             <div className="content-center font-extrabold text-black">@ {game.venue}</div>
           </div>
         )}
-        {game.status === 'CRIT' && (
-          <div className="content-center">
-            <div className="pb-2 font-extrabold text-blue-800">
-              {formattedDate} <br />
-              {gameDate.toLocaleTimeString()}
-            </div>
-            <div className="content-center font-extrabold text-black">@ {game.venue}</div>
-          </div>
-        )}
         {(game.status === 'OFF' || game.status === 'FINAL') && (
           <div className="content-center">
             <div className="pb-2 font-extrabold text-slate-700">

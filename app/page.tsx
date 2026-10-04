@@ -10,14 +10,17 @@ import InfoModal from '@/components/InfoModal';
 import banner from '@/img/blueline bannerish.png';
 import LeaderboardPanel from '@/components/Leaderboard';
 import Shoutbox from '@/components/Shoutbox';
+import FullGameDetails from '@/components/FullGameDetails';
 
 export interface Game {
   id: string;
   nhl_game_id: number;
   home_team: string;
+  home_city: string;
   home_icon: string;
   home_radio: string;
   away_team: string;
+  away_city: string;
   away_icon: string;
   away_radio: string;
   status: string;
@@ -37,14 +40,34 @@ export interface LiveGame {
   seconds_left: number | null;
   in_intermission: boolean | null;
   updated_at?: string;
+  home_id: number;
+  away_id: number;
+  home_sog: number;
+  away_sog: number;
+  clock_running: boolean | false;
 }
 
-// A scheduled game enriched with its live detail (when available)
+// Row from the `teams` table (populated by /api/get-standings)
+export interface Team {
+  id: string;
+  team_name: string;
+  place: string | null;
+  abbreviation: string | null;
+  games_played: number | null;
+  wins: number | null;
+  losses: number | null;
+  ties: number | null;
+}
+
+// A scheduled game enriched with its live detail (when available) and the
+// resolved team rows for both sides.
 export interface EnrichedGame extends Game {
   live: LiveGame | null;
+  homeTeam: Team | null;
+  awayTeam: Team | null;
 }
 
-type ActiveView = 'games' | 'myteams' | 'idleteam';
+type ActiveView = 'games' | 'myteams' | 'idleteam' | 'fullgame';
 
 function getCookie(name: string): string | null {
   const value = `; ${document.cookie}`;
@@ -73,6 +96,7 @@ function toLiveMap(rows: LiveGame[]): Record<number, LiveGame> {
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
   const [liveGames, setLiveGames] = useState<Record<number, LiveGame>>({});
+  const [teams, setTeams] = useState<Team[]>([]);
   const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<{
     id: string;
@@ -85,12 +109,33 @@ export default function Home() {
   const [activeView, setActiveView] = useState<ActiveView>('games');
   const [loading, setLoading] = useState<boolean>(true);
   const [balance, setBalance] = useState<number>(0);
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const supabase = useMemo(() => createClient(), []);
 
+  // Look up a team row by name (games.home_team/away_team match teams.team_name)
+  const teamsByName = useMemo(() => {
+    const map = new Map<string, Team>();
+    for (const t of teams) map.set(t.team_name, t);
+    return map;
+  }, [teams]);
+
   // Single source of truth for rendering: schedule rows joined with live detail
+  // and the resolved home/away team rows.
   const enrichedGames = useMemo<EnrichedGame[]>(
-    () => games.map((g) => ({ ...g, live: liveGames[g.nhl_game_id] ?? null })),
-    [games, liveGames]
+    () =>
+      games.map((g) => ({
+        ...g,
+        live: liveGames[g.nhl_game_id] ?? null,
+        homeTeam: teamsByName.get(g.home_team) ?? null,
+        awayTeam: teamsByName.get(g.away_team) ?? null,
+      })),
+    [games, liveGames, teamsByName]
+  );
+
+  // Derive the selected game from its id so it re-renders with fresh polling data
+  const selectedGame = useMemo(
+    () => enrichedGames.find((g) => g.nhl_game_id === selectedGameId) ?? null,
+    [enrichedGames, selectedGameId]
   );
 
   const fetchGames = useCallback(async (): Promise<Game[] | null> => {
@@ -121,6 +166,15 @@ export default function Home() {
       return null;
     }
     return data ? toLiveMap(data as LiveGame[]) : null;
+  }, [supabase]);
+
+  const fetchTeams = useCallback(async (): Promise<Team[] | null> => {
+    const { data, error } = await supabase.from('teams').select('*');
+    if (error) {
+      console.error('Error fetching teams:', error.message);
+      return null;
+    }
+    return data as Team[];
   }, [supabase]);
 
   useEffect(() => {
@@ -176,14 +230,19 @@ export default function Home() {
     }
 
     async function refreshGames() {
-      const [gamesData, liveData] = await Promise.all([fetchGames(), fetchLiveGames()]);
+      const [gamesData, liveData, teamsData] = await Promise.all([
+        fetchGames(),
+        fetchLiveGames(),
+        fetchTeams(),
+      ]);
       if (gamesData) setGames(gamesData);
       if (liveData) setLiveGames(liveData);
+      if (teamsData) setTeams(teamsData);
     }
 
     refreshGames();
     loadUserData();
-  }, [fetchGames, fetchLiveGames, supabase]);
+  }, [fetchGames, fetchLiveGames, fetchTeams, supabase]);
 
   // Keep the schedule rows fresh so status flips FUT -> LIVE -> FINAL without a
   // manual reload. sync-games only runs every 15 min, so a couple of minutes is plenty.
@@ -299,8 +358,14 @@ export default function Home() {
                   return newDate;
                 });
               }}
+              selectGame={(gameId: number) => {
+                setSelectedGameId(gameId);
+                setActiveView('fullgame');
+              }}
             />
           )}
+
+          {activeView === 'fullgame' && selectedGame && <FullGameDetails game={selectedGame} />}
 
           {activeView === 'myteams' && (
             <h2 className="text-base font-bold text-black">"my teams" is not finished yet :-)</h2>

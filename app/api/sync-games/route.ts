@@ -13,11 +13,13 @@ interface NhlScheduleGame {
   clock?: { timeRemaining?: string };
   homeTeam: {
     commonName: { default: string };
+    placeName: { default: string };
     logo: string;
     radioLink: string;
   };
   awayTeam: {
     commonName: { default: string };
+    placeName: { default: string };
     logo: string;
     radioLink: string;
   };
@@ -31,10 +33,7 @@ export async function GET(req: NextRequest) {
   try {
     // cron header
     const authHeader = req.headers.get('authorization');
-    if (
-      process.env.CRON_SECRET &&
-      authHeader !== `Bearer ${process.env.CRON_SECRET}`
-    ) {
+    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -64,7 +63,7 @@ export async function GET(req: NextRequest) {
       const status = g.gameState;
 
       let periodInfo = 'Scheduled';
-      if (status === 'LIVE') {
+      if (status === 'LIVE' || status === 'CRIT') {
         periodInfo = `P${g.periodDescriptor?.number || 1} - ${g.clock?.timeRemaining || 'In Progress'}`;
       } else if (status === 'OFF' || status === 'FINAL') {
         periodInfo = 'Final';
@@ -75,9 +74,11 @@ export async function GET(req: NextRequest) {
         venue: g.venue.default,
         start_utc: g.startTimeUTC,
         home_team: g.homeTeam.commonName.default,
+        home_city: g.homeTeam.placeName.default,
         home_icon: g.homeTeam.logo,
         home_radio: g.homeTeam.radioLink,
         away_team: g.awayTeam.commonName.default,
+        away_city: g.awayTeam.placeName.default,
         away_icon: g.awayTeam.logo,
         away_radio: g.awayTeam.radioLink,
         status: status,

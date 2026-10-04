@@ -144,7 +144,7 @@ export default function FullGameDetails({ game }: { game: EnrichedGame }) {
           </div>
         </div>
         <div className="my-6 content-end text-4xl font-extrabold">{game.live?.away_score}</div>
-        {game.status === 'LIVE' && clockText != 'Intermission' && (
+        {(game.status === 'LIVE' || game.status === 'CRIT') && clockText != 'Intermission' && (
           <div className="w-25 content-center">
             <div className="text-m font-bold text-blue-600">Period {game.live?.period}</div>
             <div className="rounded-xl border-2 bg-blue-600/20 px-4 text-xl font-extrabold">
